@@ -5,6 +5,7 @@ import android.graphics.Typeface
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.view.ViewGroup
+import java.io.InputStream
 import android.widget.Button
 import android.widget.TextView
 import androidx.constraintlayout.widget.ConstraintLayout
@@ -16,6 +17,11 @@ import kotlin.math.log
 class WelcomeActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+       //installCertificate(this)
+        //val sslSocketFactory = getSSLSocketFactory()
+        //val SocketFactory = getCustomSSLContext()
+
 // Создаем ConstraintLayout в качестве корневого элемента макета
         val layout = ConstraintLayout(this)
         layout.layoutParams = ConstraintLayout.LayoutParams(

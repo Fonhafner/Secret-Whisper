@@ -1,189 +1,193 @@
 package com.example.secret_whisper
 
+import android.os.AsyncTask
 import android.os.Bundle
-import android.view.View.generateViewId
+import android.text.InputType
+import androidx.appcompat.app.AppCompatActivity
 import android.widget.Button
 import android.widget.EditText
+import android.widget.RelativeLayout
+import android.widget.TextView
 import android.widget.Toast
-import androidx.appcompat.app.AppCompatActivity
-import androidx.constraintlayout.widget.ConstraintLayout
-import androidx.constraintlayout.widget.ConstraintSet
-import com.android.volley.Request
-import com.android.volley.Response
-import com.android.volley.toolbox.JsonObjectRequest
-import com.android.volley.toolbox.Volley
+import okhttp3.*
+import org.json.JSONException
 import org.json.JSONObject
+import java.io.IOException
+import java.io.InputStream
+import java.security.KeyStore
+import java.security.cert.CertificateFactory
+import javax.net.ssl.SSLContext
+import javax.net.ssl.TrustManagerFactory
+import javax.net.ssl.X509TrustManager
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.RequestBody.Companion.toRequestBody
+
 
 class AuthActivity : AppCompatActivity() {
+
+    private lateinit var loginEditText: EditText
+    private lateinit var passwordEditText: EditText
+    private lateinit var confirmPasswordEditText: EditText
+    private lateinit var continueButton: Button
+    private lateinit var client: OkHttpClient
+    private lateinit var responseTextView: TextView // Добавлено
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Создаем ConstraintLayout в качестве корневого элемента макета
-        val layout = ConstraintLayout(this)
-        layout.layoutParams = ConstraintLayout.LayoutParams(
-            ConstraintLayout.LayoutParams.MATCH_PARENT,
-            ConstraintLayout.LayoutParams.MATCH_PARENT
-        )
+        val layout = RelativeLayout(this)
         setContentView(layout)
 
-        // Создаем EditText для ввода логина
-        val loginEditText = EditText(this).apply {
-            id = generateViewId()
-            hint = "Логин"
-        }
-        layout.addView(loginEditText)
-
-        // Создаем EditText для ввода пароля
-        val passwordEditText = EditText(this).apply {
-            id = generateViewId()
-            hint = "Пароль"
-            inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD
-        }
-        layout.addView(passwordEditText)
-
-        // Создаем EditText для подтверждения пароля
-        val confirmPasswordEditText = EditText(this).apply {
-            id = generateViewId()
-            hint = "Подтвердите пароль"
-            inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD
-        }
-        layout.addView(confirmPasswordEditText)
-
-        // Создаем кнопку "Продолжить"
-        val continueButton = Button(this).apply {
-            id = generateViewId()
-            text = "Продолжить"
-        }
-        layout.addView(continueButton)
-
-        // Настраиваем ConstraintSet для размещения элементов
-        val constraintSet = ConstraintSet().apply {
-            clone(layout)
-
-            connect(
-                loginEditText.id,
-                ConstraintSet.TOP,
-                ConstraintSet.PARENT_ID,
-                ConstraintSet.TOP,
-                100
-            )
-            connect(
-                loginEditText.id,
-                ConstraintSet.START,
-                ConstraintSet.PARENT_ID,
-                ConstraintSet.START,
-                50
-            )
-            connect(
-                loginEditText.id,
-                ConstraintSet.END,
-                ConstraintSet.PARENT_ID,
-                ConstraintSet.END,
-                50
-            )
-
-            connect(
-                passwordEditText.id,
-                ConstraintSet.TOP,
-                loginEditText.id,
-                ConstraintSet.BOTTOM,
-                20
-            )
-            connect(
-                passwordEditText.id,
-                ConstraintSet.START,
-                ConstraintSet.PARENT_ID,
-                ConstraintSet.START,
-                50
-            )
-            connect(
-                passwordEditText.id,
-                ConstraintSet.END,
-                ConstraintSet.PARENT_ID,
-                ConstraintSet.END,
-                50
-            )
-
-            connect(
-                confirmPasswordEditText.id,
-                ConstraintSet.TOP,
-                passwordEditText.id,
-                ConstraintSet.BOTTOM,
-                20
-            )
-            connect(
-                confirmPasswordEditText.id,
-                ConstraintSet.START,
-                ConstraintSet.PARENT_ID,
-                ConstraintSet.START,
-                50
-            )
-            connect(
-                confirmPasswordEditText.id,
-                ConstraintSet.END,
-                ConstraintSet.PARENT_ID,
-                ConstraintSet.END,
-                50
-            )
-
-            connect(
-                continueButton.id,
-                ConstraintSet.TOP,
-                confirmPasswordEditText.id,
-                ConstraintSet.BOTTOM,
-                50
-            )
-            connect(
-                continueButton.id,
-                ConstraintSet.START,
-                ConstraintSet.PARENT_ID,
-                ConstraintSet.START,
-                100
-            )
-            connect(
-                continueButton.id,
-                ConstraintSet.END,
-                ConstraintSet.PARENT_ID,
-                ConstraintSet.END,
-                100
-            )
-
-            applyTo(layout)
-        }
-
-        continueButton.setOnClickListener {
-            val username = loginEditText.text.toString()
-            val password = passwordEditText.text.toString()
-            val confirmPassword = confirmPasswordEditText.text.toString()
-
-            // Проверка на совпадение паролей
-            if (password != confirmPassword) {
-                Toast.makeText(this, "Пароли не совпадают", Toast.LENGTH_SHORT).show()
-                return@setOnClickListener
+        loginEditText = EditText(this).apply {
+            id = R.id.loginEditText
+            hint = "Username"
+            layoutParams = RelativeLayout.LayoutParams(
+                RelativeLayout.LayoutParams.MATCH_PARENT,
+                RelativeLayout.LayoutParams.WRAP_CONTENT
+            ).apply {
+                setMargins(16, 16, 16, 0)
             }
+            layout.addView(this)
+        }
 
-            // Создание JSON-объекта с данными пользователя
-            val jsonBody = JSONObject().apply {
-                put("username", username)
-                put("password", password)
+        passwordEditText = EditText(this).apply {
+            id = R.id.passwordEditText
+            hint = "Password"
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
+            layoutParams = RelativeLayout.LayoutParams(
+                RelativeLayout.LayoutParams.MATCH_PARENT,
+                RelativeLayout.LayoutParams.WRAP_CONTENT
+            ).apply {
+                setMargins(16, 16, 16, 0)
+                addRule(RelativeLayout.BELOW, loginEditText.id)
             }
+            layout.addView(this)
+        }
 
-            // Отправка POST-запроса на сервер
-            val queue = Volley.newRequestQueue(this)
-            val url = "https://87.242.119.51//api/register" // Замените на ваш IP-адрес и эндпоинт
-            val request = JsonObjectRequest(
-                Request.Method.POST, url, jsonBody,
-                Response.Listener { response ->
-                    // Обработка ответа от сервера
-                    Toast.makeText(this, "Пользователь успешно зарегистрирован", Toast.LENGTH_SHORT).show()
-                },
-                Response.ErrorListener { error ->
-                    // Обработка ошибки
-                    Toast.makeText(this, "Ошибка: ${error.message}", Toast.LENGTH_SHORT).show()
+        confirmPasswordEditText = EditText(this).apply {
+            id = R.id.confirmPasswordEditText
+            hint = "Confirm Password"
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
+            layoutParams = RelativeLayout.LayoutParams(
+                RelativeLayout.LayoutParams.MATCH_PARENT,
+                RelativeLayout.LayoutParams.WRAP_CONTENT
+            ).apply {
+                setMargins(16, 16, 16, 0)
+                addRule(RelativeLayout.BELOW, passwordEditText.id)
+            }
+            layout.addView(this)
+        }
+
+        responseTextView = TextView(this).apply { // Добавлено
+            id = R.id.responseTextView
+            layoutParams = RelativeLayout.LayoutParams(
+                RelativeLayout.LayoutParams.MATCH_PARENT,
+                RelativeLayout.LayoutParams.WRAP_CONTENT
+            ).apply {
+                setMargins(16, 16, 16, 0)
+                addRule(RelativeLayout.BELOW, confirmPasswordEditText.id)
+            }
+            layout.addView(this)
+        }
+
+        continueButton = Button(this).apply {
+            id = R.id.continueButton
+            text = "Continue"
+            layoutParams = RelativeLayout.LayoutParams(
+                RelativeLayout.LayoutParams.WRAP_CONTENT,
+                RelativeLayout.LayoutParams.WRAP_CONTENT
+            ).apply {
+                setMargins(16, 16, 16, 0)
+                addRule(RelativeLayout.BELOW, responseTextView.id) // Изменено
+                addRule(RelativeLayout.CENTER_HORIZONTAL)
+            }
+            setOnClickListener {
+                val username = loginEditText.text.toString()
+                val password = passwordEditText.text.toString()
+                val confirmPassword = confirmPasswordEditText.text.toString()
+
+                if (password == confirmPassword) {
+                    RegisterUserTask().execute(username, password)
+                } else {
+                    showToast("Passwords do not match")
                 }
-            )
-            queue.add(request)
+            }
+            layout.addView(this)
+        }
+
+        // Загрузка сертификата из raw ресурсов
+        val certificateInputStream: InputStream = resources.openRawResource(R.raw.sertifi)
+        val certificateFactory = CertificateFactory.getInstance("X.509")
+        val certificate = certificateFactory.generateCertificate(certificateInputStream)
+
+        // Создание хранилища ключей KeyStore и добавление сертификата в него
+        val keyStore = KeyStore.getInstance(KeyStore.getDefaultType())
+        keyStore.load(null, null)
+        keyStore.setCertificateEntry("certificate", certificate)
+
+        // Создание менеджера доверия, используя TrustManagerFactory
+        val trustManagerFactory = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm())
+        trustManagerFactory.init(keyStore)
+        val trustManagers = trustManagerFactory.trustManagers
+
+        // Получение X509TrustManager из массива TrustManager'ов
+        val trustManager = trustManagers[0] as X509TrustManager
+
+        // Создание SSLContext и настройка его с использованием X509TrustManager
+        val sslContext = SSLContext.getInstance("TLS")
+        sslContext.init(null, arrayOf(trustManager), null)
+
+        // Создание OkHttpClient с настройками SSLContext и TrustManager'а
+        client = OkHttpClient.Builder()
+            .sslSocketFactory(sslContext.socketFactory, trustManager)
+            .build()
+    }
+
+    private inner class RegisterUserTask : AsyncTask<String, Void, String>() {
+
+        override fun doInBackground(vararg params: String): String {
+            val username = params[0]
+            val password = params[1]
+            val url = "https://rtusecretwhisper.ru/api/register"
+            val json  = JSONObject()
+            json.put("username", username)
+            json.put("password", password)
+
+            val requestBody = json.toString().toRequestBody("application/json".toMediaTypeOrNull())
+            val request = Request.Builder()
+                .url(url)
+                .post(requestBody)
+                .build()
+
+            try {
+                val response = client.newCall(request).execute()
+                return response.body?.string() ?: ""
+            } catch (e: IOException) {
+                e.printStackTrace()
+            }
+            return ""
+        }
+
+        override fun onPostExecute(result: String) {
+            super.onPostExecute(result)
+            try {
+                val json = JSONObject(result)
+                // Handle response data
+                if (json.has("error")) {
+                    val errorMessage = json.getString("error")
+                    responseTextView.text = errorMessage // Изменено
+                } else {
+                    val successMessage = "Registration Successful" // Добавлено
+                    responseTextView.text = successMessage // Добавлено
+                }
+            } catch (e: JSONException) {
+                e.printStackTrace()
+            }
         }
     }
+
+    private fun showToast(message: String) {
+        Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
+    }
 }
+

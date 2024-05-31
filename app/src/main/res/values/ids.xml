@@ -7,4 +7,6 @@
     <item name="welcomeMessageTextView" type="id" />
     <item name="continueButton" type="id" />
     <item name="forgotPasswordTextView" type="id" />
+    <item name="server_cert" type="id"/>
+    <item name="responseTextView" type="id" />
 </resources>
